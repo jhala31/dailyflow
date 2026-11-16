@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DailyFlow — Expense &amp; Habit Tracker</title>
+  <meta name="theme-color" content="#4f46e5" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    .tab-active { color: #4f46e5; border-bottom: 2px solid #4f46e5; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
+  <!-- App Shell -->
+  <div class="max-w-md w-full mx-auto bg-white min-h-screen shadow-sm border-x border-slate-200 flex flex-col">
+    <!-- Header -->
+    <header class="px-4 pt-4 pb-3 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-20">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+          D
+        </div>
+        <div>
+          <h1 class="text-base font-bold text-slate-900 leading-tight">DailyFlow</h1>
+          <p class="text-xs text-slate-500">Expenses &amp; Habits</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="currencyToggleBtn" type="button" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition">
+          ₹ INR
+        </button>
+        <button id="proBadgeBtn" type="button" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200 transition">
+          ★ Go Pro
+        </button>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="grid grid-cols-3 border-b border-slate-200 bg-white text-sm font-medium text-slate-500 sticky top-[61px] z-10">
+      <button id="tabExpenses" type="button" class="py-3 text-center tab-active transition">Expenses</button>
+      <button id="tabHabits" type="button" class="py-3 text-center hover:text-slate-800 transition">Habits</button>
+      <button id="tabInsights" type="button" class="py-3 text-center hover:text-slate-800 transition">Insights</button>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-4 space-y-4 overflow-y-auto">
+      <!-- EXPENSES VIEW -->
+      <section id="viewExpenses" class="space-y-4">
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-100">
+            <p class="text-xs font-medium text-indigo-700">Today's Spend</p>
+            <p id="todayTotal" class="text-xl font-bold text-indigo-950 mt-1">₹0</p>
+          </div>
+          <div class="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-100">
+            <p class="text-xs font-medium text-emerald-700">This Month</p>
+            <p id="monthTotal" class="text-xl font-bold text-emerald-950 mt-1">₹0</p>
+          </div>
+        </div>
+
+        <!-- Add Expense Form -->
+        <form id="expenseForm" class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-slate-800">Add Expense</h2>
+            <span class="text-xs text-slate-500">Quick entry</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2.5">
+            <input id="expTitle" type="text" placeholder="Item (e.g. Coffee)" required
+              class="col-span-2 px-3 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <input id="expAmount" type="number" min="1" step="any" placeholder="Amount" required
+              class="px-3 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <select id="expCategory"
+              class="px-3 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="Food">Food</option>
+              <option value="Travel">Travel</option>
+              <option value="Bills">Bills</option>
+              <option value="Shopping">Shopping</option>
+              <option value="Health">Health</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <button type="submit"
+            class="w-full py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 active:scale-[0.99] transition">
+            + Add Expense
+          </button>
+        </form>
+
+        <!-- Category Filter -->
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-1" id="categoryFilters">
+          <button type="button" data-cat="All" class="cat-pill px-3 py-1 rounded-full text-xs font-medium bg-indigo-600 text-white shrink-0">All</button>
+          <button type="button" data-cat="Food" class="cat-pill px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 shrink-0">Food</button>
+          <button type="button" data-cat="Travel" class="cat-pill px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 shrink-0">Travel</button>
+          <button type="button" data-cat="Bills" class="cat-pill px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 shrink-0">Bills</button>
+          <button type="button" data-cat="Shopping" class="cat-pill px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 shrink-0">Shopping</button>
+          <button type="button" data-cat="Health" class="cat-pill px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 shrink-0">Health</button>
+        </div>
+
+        <!-- Expense List -->
+        <div class="space-y-2">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Recent Transactions</h3>
+          <div id="expenseList" class="space-y-2"></div>
+        </div>
+      </section>
+
+      <!-- HABITS VIEW -->
+      <section id="viewHabits" class="space-y-4 hidden">
+        <!-- Habit Progress Card -->
+        <div class="p-4 rounded-2xl bg-indigo-600 text-white space-y-2">
+          <div class="flex items-center justify-between">
+            <p class="text-xs font-medium text-indigo-100">Today's Habit Score</p>
+            <span id="habitScoreText" class="text-sm font-bold">0 / 0</span>
+          </div>
+          <div class="w-full h-2.5 bg-indigo-900/40 rounded-full overflow-hidden">
+            <div id="habitProgressBar" class="h-full bg-emerald-400 rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Add Habit Form -->
+        <form id="habitForm" class="flex gap-2">
+          <input id="habitInput" type="text" placeholder="New habit (e.g. Meditate 10 min)" required
+            class="flex-1 px-3 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <button type="submit"
+            class="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition shrink-0">
+            Add
+          </button>
+        </form>
+        <p id="habitLimitNote" class="text-xs text-slate-500">Free plan supports up to 4 active habits. Upgrade to Pro for unlimited habits.</p>
+
+        <!-- Habits List -->
+        <div id="habitList" class="space-y-2.5"></div>
+      </section>
+
+      <!-- INSIGHTS & PRO VIEW -->
+      <section id="viewInsights" class="space-y-4 hidden">
+        <div class="p-4 rounded-2xl bg-white border border-slate-200 space-y-3">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-slate-800">Spending Breakdown</h2>
+            <span id="chartTotalLabel" class="text-xs font-medium text-slate-500"></span>
+          </div>
+          <div class="relative h-64">
+            <canvas id="spendChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Freemium Pro Features Card -->
+        <div class="p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-bold text-amber-950">DailyFlow Pro</h3>
+              <p class="text-xs text-amber-800">Freemium In-App Upgrade Preview</p>
+            </div>
+            <span id="proStatusPill" class="px-2.5 py-1 text-xs font-semibold rounded-full bg-white text-amber-800 border border-amber-200">
+              Free Plan
+            </span>
+          </div>
+          <ul class="text-xs text-amber-900 space-y-1.5">
+            <li>• Unlimited daily habits &amp; streak history</li>
+            <li>• One-tap CSV export for tax &amp; accounting</li>
+            <li>• Custom monthly budget alerts</li>
+          </ul>
+          <div class="flex gap-2 pt-1">
+            <button id="exportCsvBtn" type="button"
+              class="flex-1 py-2 rounded-xl bg-white border border-amber-300 text-amber-900 text-xs font-semibold hover:bg-amber-100 transition">
+              Export CSV
+            </button>
+            <button id="openProModalBtn" type="button"
+              class="flex-1 py-2 rounded-xl bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700 transition">
+              Unlock Pro (₹199)
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Pro Upgrade Modal -->
+  <div id="proModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl">
+      <div class="flex items-start justify-between">
+        <div>
+          <span class="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-100 text-amber-800">PRO UPGRADE</span>
+          <h3 class="text-lg font-bold text-slate-900 mt-1">Unlock DailyFlow Pro</h3>
+        </div>
+        <button id="closeProModalBtn" type="button" class="text-slate-400 hover:text-slate-700 text-lg font-bold px-1">&times;</button>
+      </div>
+      <p class="text-xs text-slate-600 leading-relaxed">
+        In your published Google Play app, this button triggers <strong>Google Play Billing</strong> for a one-time ₹199 unlock or monthly subscription.
+      </p>
+      <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-1">
+        <p class="font-semibold text-slate-900">Included in Pro:</p>
+        <p>✓ Unlimited custom habits</p>
+        <p>✓ CSV spreadsheet export</p>
+        <p>✓ Ad-free experience</p>
+      </div>
+      <div class="flex gap-2">
+        <button id="toggleProDemoBtn" type="button"
+          class="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition">
+          Activate Pro Demo
+        </button>
+        <button id="cancelProModalBtn" type="button"
+          class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold hover:bg-slate-200 transition">
+          Later
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-medium shadow-lg opacity-0 pointer-events-none transition-opacity duration-200 z-50">
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'dailyflow_state_v1';
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    const defaultState = {
+      currency: 'INR',
+      isPro: false,
+      activeTab: 'expenses',
+      filterCat: 'All',
+      expenses: [
+        { id: 'e1', title: 'Morning Chai & Snacks', amount: 80, category: 'Food', date: todayStr },
+        { id: 'e2', title: 'Metro / Fuel', amount: 220, category: 'Travel', date: todayStr },
+        { id: 'e3', title: 'Mobile Recharge', amount: 299, category: 'Bills', date: todayStr }
+      ],
+      habits: [
+        { id: 'h1', name: 'Morning Walk (20 min)', streak: 5, doneToday: true },
+        { id: 'h2', name: 'Drink 2L Water', streak: 3, doneToday: false },
+        { id: 'h3', name: 'Track All Expenses', streak: 7, doneToday: true }
+      ]
+    };
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return structuredClone(defaultState);
+        const parsed = JSON.parse(raw);
+        return { ...structuredClone(defaultState), ...parsed };
+      } catch (e) {
+        return structuredClone(defaultState);
+      }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {}
+    }
+
+    let state = loadState();
+    let spendChartInstance = null;
+
+    function fmt(amount) {
+      const symbol = state.currency === 'INR' ? '₹' : '$';
+      return symbol + Number(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+    }
+
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.remove('opacity-0');
+      setTimeout(() => el.classList.add('opacity-0'), 2200);
+    }
+
+    function switchTab(tab) {
+      state.activeTab = tab;
+      saveState();
+      const tabs = ['expenses', 'habits', 'insights'];
+      tabs.forEach((t) => {
+        const btn = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+        const view = document.getElementById('view' + t.charAt(0).toUpperCase() + t.slice(1));
+        if (t === tab) {
+          btn.classList.add('tab-active');
+          btn.classList.remove('text-slate-500');
+          view.classList.remove('hidden');
+        } else {
+          btn.classList.remove('tab-active');
+          btn.classList.add('text-slate-500');
+          view.classList.add('hidden');
+        }
+      });
+      if (tab === 'insights') renderChart();
+    }
+
+    function renderExpenses() {
+      const todaySum = state.expenses
+        .filter((e) => e.date === todayStr)
+        .reduce((acc, e) => acc + Number(e.amount), 0);
+      const monthPrefix = todayStr.slice(0, 7);
+      const monthSum = state.expenses
+        .filter((e) => e.date.startsWith(monthPrefix))
+        .reduce((acc, e) => acc + Number(e.amount), 0);
+
+      document.getElementById('todayTotal').textContent = fmt(todaySum);
+      document.getElementById('monthTotal').textContent = fmt(monthSum);
+
+      document.querySelectorAll('.cat-pill').forEach((btn) => {
+        if (btn.dataset.cat === state.filterCat) {
+          btn.className = 'cat-pill px-3 py-1 rounded-full text-xs font-medium bg-indigo-600 text-white shrink-0';
+        } else {
+          btn.className = 'cat-pill px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 shrink-0';
+        }
+      });
+
+      const listEl = document.getElementById('expenseList');
+      const items = state.filterCat === 'All'
+        ? state.expenses
+        : state.expenses.filter((e) => e.category === state.filterCat);
+
+      if (items.length === 0) {
+        listEl.innerHTML = '<div class="p-6 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">No expenses in this category yet.</div>';
+        return;
+      }
+
+      listEl.innerHTML = items.map((e) => `
+        <div class="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200">
+          <div class="min-w-0">
+            <p class="text-sm font-medium text-slate-800 truncate">${escapeHtml(e.title)}</p>
+            <p class="text-xs text-slate-400">${escapeHtml(e.category)} • ${escapeHtml(e.date)}</p>
+          </div>
+          <div class="flex items-center gap-3 shrink-0">
+            <span class="text-sm font-semibold text-slate-900">${fmt(e.amount)}</span>
+            <button type="button" data-del-exp="${e.id}" class="text-xs text-rose-500 hover:text-rose-700 font-medium px-1.5 py-1 rounded-lg hover:bg-rose-50">
+              Delete
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderHabits() {
+      const total = state.habits.length;
+      const done = state.habits.filter((h) => h.doneToday).length;
+      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+      document.getElementById('habitScoreText').textContent = `${done} / ${total}`;
+      document.getElementById('habitProgressBar').style.width = `${pct}%`;
+
+      const listEl = document.getElementById('habitList');
+      if (total === 0) {
+        listEl.innerHTML = '<div class="p-6 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">Add your first daily habit above.</div>';
+        return;
+      }
+
+      listEl.innerHTML = state.habits.map((h) => `
+        <div class="flex items-center justify-between p-3.5 rounded-xl border ${h.doneToday ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-200'} transition">
+          <button type="button" data-toggle-habit="${h.id}" class="flex items-center gap-3 text-left flex-1 min-w-0">
+            <span class="w-5 h-5 rounded-md flex items-center justify-center text-xs font-bold shrink-0 ${h.doneToday ? 'bg-emerald-600 text-white' : 'border-2 border-slate-300 text-transparent'}">✓</span>
+            <div class="min-w-0">
+              <p class="text-sm font-medium ${h.doneToday ? 'line-through text-emerald-900' : 'text-slate-800'} truncate">${escapeHtml(h.name)}</p>
+              <p class="text-xs ${h.doneToday ? 'text-emerald-700' : 'text-slate-400'}">🔥 ${h.streak} day streak</p>
+            </div>
+          </button>
+          <button type="button" data-del-habit="${h.id}" class="text-xs text-slate-400 hover:text-rose-600 px-2 py-1 shrink-0">Remove</button>
+        </div>
+      `).join('');
+    }
+
+    function renderProUI() {
+      document.getElementById('currencyToggleBtn').textContent = state.currency === 'INR' ? '₹ INR' : '$ USD';
+      const pill = document.getElementById('proStatusPill');
+      const badge = document.getElementById('proBadgeBtn');
+      const toggleBtn = document.getElementById('toggleProDemoBtn');
+      const limitNote = document.getElementById('habitLimitNote');
+
+      if (state.isPro) {
+        pill.textContent = 'Pro Active';
+        pill.className = 'px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200';
+        badge.textContent = '★ Pro';
+        badge.className = 'px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-100 text-emerald-800';
+        toggleBtn.textContent = 'Switch Back to Free Demo';
+        limitNote.textContent = 'Pro active: unlimited habits & CSV export unlocked.';
+      } else {
+        pill.textContent = 'Free Plan';
+        pill.className = 'px-2.5 py-1 text-xs font-semibold rounded-full bg-white text-amber-800 border border-amber-200';
+        badge.textContent = '★ Go Pro';
+        badge.className = 'px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200 transition';
+        toggleBtn.textContent = 'Activate Pro Demo';
+        limitNote.textContent = 'Free plan supports up to 4 active habits. Upgrade to Pro for unlimited habits.';
+      }
+    }
+
+    function renderChart() {
+      const ctx = document.getElementById('spendChart').getContext('2d');
+      const totals = {};
+      state.expenses.forEach((e) => {
+        totals[e.category] = (totals[e.category] || 0) + Number(e.amount);
+      });
+      const labels = Object.keys(totals);
+      const data = Object.values(totals);
+      const grandTotal = data.reduce((a, b) => a + b, 0);
+      document.getElementById('chartTotalLabel').textContent = 'Total: ' + fmt(grandTotal);
+
+      if (spendChartInstance) spendChartInstance.destroy();
+      spendChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels.length ? labels : ['No Data'],
+          datasets: [{
+            data: data.length ? data : [1],
+            backgroundColor: labels.length
+              ? ['#4f46e5', '#10b981', '#f59e0b', '#ec4899', '#06b6d4', '#64748b']
+              : ['#e2e8f0'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+          }
+        }
+      });
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function openProModal() {
+      const modal = document.getElementById('proModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeProModal() {
+      const modal = document.getElementById('proModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    // Event Listeners
+    document.getElementById('tabExpenses').addEventListener('click', () => switchTab('expenses'));
+    document.getElementById('tabHabits').addEventListener('click', () => switchTab('habits'));
+    document.getElementById('tabInsights').addEventListener('click', () => switchTab('insights'));
+
+    document.getElementById('currencyToggleBtn').addEventListener('click', () => {
+      state.currency = state.currency === 'INR' ? 'USD' : 'INR';
+      saveState();
+      renderProUI();
+      renderExpenses();
+      if (state.activeTab === 'insights') renderChart();
+      showToast('Currency switched to ' + state.currency);
+    });
+
+    document.getElementById('proBadgeBtn').addEventListener('click', openProModal);
+    document.getElementById('openProModalBtn').addEventListener('click', openProModal);
+    document.getElementById('closeProModalBtn').addEventListener('click', closeProModal);
+    document.getElementById('cancelProModalBtn').addEventListener('click', closeProModal);
+
+    document.getElementById('toggleProDemoBtn').addEventListener('click', () => {
+      state.isPro = !state.isPro;
+      saveState();
+      renderProUI();
+      closeProModal();
+      showToast(state.isPro ? 'Pro Demo activated!' : 'Switched back to Free plan');
+    });
+
+    document.getElementById('expenseForm').addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const title = document.getElementById('expTitle').value.trim();
+      const amount = parseFloat(document.getElementById('expAmount').value);
+      const category = document.getElementById('expCategory').value;
+      if (!title || !(amount > 0)) return;
+      state.expenses.unshift({
+        id: 'e_' + Date.now(),
+        title,
+        amount,
+        category,
+        date: todayStr
+      });
+      saveState();
+      document.getElementById('expTitle').value = '';
+      document.getElementById('expAmount').value = '';
+      renderExpenses();
+      showToast('Expense added');
+    });
+
+    document.getElementById('categoryFilters').addEventListener('click', (ev) => {
+      const btn = ev.target.closest('.cat-pill');
+      if (!btn) return;
+      state.filterCat = btn.dataset.cat;
+      saveState();
+      renderExpenses();
+    });
+
+    document.getElementById('expenseList').addEventListener('click', (ev) => {
+      const btn = ev.target.closest('[data-del-exp]');
+      if (!btn) return;
+      const id = btn.dataset.delExp;
+      state.expenses = state.expenses.filter((e) => e.id !== id);
+      saveState();
+      renderExpenses();
+      showToast('Expense removed');
+    });
+
+    document.getElementById('habitForm').addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      if (!state.isPro && state.habits.length >= 4) {
+        openProModal();
+        showToast('Free limit reached (4 habits)');
+        return;
+      }
+      const name = document.getElementById('habitInput').value.trim();
+      if (!name) return;
+      state.habits.push({
+        id: 'h_' + Date.now(),
+        name,
+        streak: 0,
+        doneToday: false
+      });
+      saveState();
+      document.getElementById('habitInput').value = '';
+      renderHabits();
+      showToast('Habit added');
+    });
+
+    document.getElementById('habitList').addEventListener('click', (ev) => {
+      const toggleBtn = ev.target.closest('[data-toggle-habit]');
+      if (toggleBtn) {
+        const id = toggleBtn.dataset.toggleHabit;
+        state.habits = state.habits.map((h) => {
+          if (h.id !== id) return h;
+          const next = !h.doneToday;
+          return { ...h, doneToday: next, streak: next ? h.streak + 1 : Math.max(0, h.streak - 1) };
+        });
+        saveState();
+        renderHabits();
+        return;
+      }
+      const delBtn = ev.target.closest('[data-del-habit]');
+      if (delBtn) {
+        const id = delBtn.dataset.delHabit;
+        state.habits = state.habits.filter((h) => h.id !== id);
+        saveState();
+        renderHabits();
+        showToast('Habit removed');
+      }
+    });
+
+    document.getElementById('exportCsvBtn').addEventListener('click', () => {
+      if (!state.isPro) {
+        openProModal();
+        showToast('CSV export is a Pro feature');
+        return;
+      }
+      const rows = [['Date', 'Title', 'Category', 'Amount (' + state.currency + ')']];
+      state.expenses.forEach((e) => {
+        rows.push([e.date, `"${String(e.title).replace(/"/g, '""')}"`, e.category, e.amount]);
+      });
+      const csv = rows.map((r) => r.join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dailyflow_expenses_${todayStr}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('CSV downloaded');
+    });
+
+    // Initial render
+    renderProUI();
+    renderExpenses();
+    renderHabits();
+    switchTab(state.activeTab || 'expenses');
+  </script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
